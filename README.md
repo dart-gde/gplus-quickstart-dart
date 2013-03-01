@@ -8,4 +8,4 @@ https://developers.google.com/+/quickstart/javascript
 
 Open the project in the Dart Editor and run `pub install` to get all required libraries.
 
-Or `pub install` from a console in the project folder.
+Or run `pub install` from a console in the project folder.

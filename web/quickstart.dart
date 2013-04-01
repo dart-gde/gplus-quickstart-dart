@@ -12,6 +12,8 @@ void main() {
   /// Dart Client Library for the Google+ API
   Plus plusclient = new Plus(auth);
 
+  Map authResultMap;
+  
   /**
    * Gets and renders the list of people visible to this app.
    */
@@ -29,6 +31,42 @@ void main() {
   }
 
   /**
+   * Calls the server endpoint to connect the app for the user. The client
+   * sends the one-time authorization code to the server and the server
+   * exchanges the code for its own tokens to use for offline API access.
+   * For more information, see:
+   *   https://developers.google.com/+/web/signin/server-side-flow
+   */
+  connectServer(gplusId) {
+    print("gplusId = $gplusId");
+//    connectServer: function(gplusId) {
+//      console.log(this.authResult.code);
+//      $.ajax({
+//        type: 'POST',
+//        url: window.location.href + '/connect?state={{ STATE }}&gplus_id=' +
+//            gplusId,
+//        contentType: 'application/octet-stream; charset=utf-8',
+//        success: function(result) {
+//          console.log(result);
+//          helper.people();
+//        },
+//        processData: false,
+//        data: this.authResult.code
+//      });
+//    },
+    //HttpRequest.request("url", method: "POST", withCredentials, responseType, sendData, onProgress)
+    //TODO: check for errors or missing data
+    var stateToken = (query("meta[name='state_token']") as MetaElement).content;
+    String url = "${window.location.href}connect?state_token=${stateToken}&gplus_id=${gplusId}";
+    print(url);
+    HttpRequest.request(url, method: "POST", sendData: JSON.stringify(authResultMap))
+    .then((v) {
+      print("connected from POST METHOD");
+      HttpRequest.getString("${window.location.href}people").then((r)=>print("r = $r"));
+    });
+  }
+  
+  /**
    * Gets and renders the currently signed in user's profile data.
    */
   void showProfile() {
@@ -43,6 +81,8 @@ void main() {
       profileDiv.appendHtml(
         "<p><img src=\"${profile.cover.coverPhoto.url}\"</p>"  
       );
+      
+      connectServer(profile.id);
     });
   }
   
@@ -65,6 +105,9 @@ void main() {
       // Enable Authenticated requested with the granted token in the client libary
       auth.token = authResult["access_token"];
       auth.tokenType = authResult["token_type"];
+      print("authResult = $authResult");
+      authResult.forEach((k,v) => print("$k = $v"));
+      authResultMap = authResult;
       plusclient.makeAuthRequests = true;
 
       showProfile();
@@ -102,7 +145,7 @@ void main() {
 
       ScriptElement script = new Element.tag("script");
       script.src = "https://accounts.google.com/o/oauth2/revoke?token=${auth.token}&callback=myJsonpCallback";
-      document.body.children.addLast(script);
+      document.body.children.add(script);
     });    
   }
   

@@ -17,6 +17,7 @@ void main() {
   /// Dart Client Library for the Google+ API
   Plus plusclient = new Plus(auth);
 
+  /// Stored authentication results
   Map authResultMap;
   
   /**
@@ -108,8 +109,8 @@ void main() {
       // Enable Authenticated requested with the granted token in the client libary
       auth.token = authResult["access_token"];
       auth.tokenType = authResult["token_type"];
-      print("authResult = $authResult");
-      authResult.forEach((k,v) => print("$k = $v"));
+      clientLogger.fine("authResult = $authResult");
+      authResult.forEach((k,v) => clientLogger.fine("$k = $v"));
       authResultMap = authResult;
       plusclient.makeAuthRequests = true;
 
@@ -117,12 +118,12 @@ void main() {
     } else if (authResult["error"] != null) {
       // There was an error, which means the user is not signed in.
       // As an example, you can handle by writing to the console:
-      print("There was an error: ${authResult["error"]}");
+      clientLogger.fine("There was an error: ${authResult["error"]}");
       query("#authResult").appendHtml("Logged out");
       query("#authOps").style.display = "none";
       query("#gConnect").style.display = "block";
     }
-    print("authResult $authResult");
+    clientLogger.fine("authResult $authResult");
   }
 
   /**
@@ -147,30 +148,7 @@ void main() {
       query("#visiblePeople").innerHtml = "";
       query("#authResult").innerHtml = "";
       query("#gConnect").style.display = "block";
-    });
-    
-    /*
-    js.scoped(() {
-      // JSONP workaround because the accounts.google.com endpoint doesn't allow CORS
-      js.context.myJsonpCallback = new js.Callback.once(([jsonData]) {
-        print("revoke response: $jsonData");
-        
-        // disable authenticated requests in the client library
-        auth.token = null;
-        plusclient.makeAuthRequests = false;
-
-        query("#authOps").style.display = "none";
-        query("#profile").innerHtml = "";
-        query("#visiblePeople").innerHtml = "";
-        query("#authResult").innerHtml = "";
-        query("#gConnect").style.display = "block";
-      });
-
-      ScriptElement script = new Element.tag("script");
-      script.src = "https://accounts.google.com/o/oauth2/revoke?token=${auth.token}&callback=myJsonpCallback";
-      document.body.children.add(script);
-    }); 
-    */   
+    });  
   }
   
   /**

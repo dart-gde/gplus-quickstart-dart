@@ -25,16 +25,14 @@ void main() {
   void showPeople(Map peopleData) {
     PeopleFeed people = new PeopleFeed.fromJson(peopleData);
     
-    //plusclient.people.list("me", "visible").then((PeopleFeed people) {
-      Element visiblePeople = query("#visiblePeople");
-      visiblePeople.innerHtml = "";
-      visiblePeople.appendHtml("Number of people visible to this app: ${people.totalItems}<br>");
-      if (people.items != null) {
-        people.items.forEach((Person person) {
-          visiblePeople.appendHtml("<img src=\"${person.image.url}\">");
-        });
-      }
-    //});
+    Element visiblePeople = query("#visiblePeople");
+    visiblePeople.innerHtml = "";
+    visiblePeople.appendHtml("Number of people visible to this app: ${people.totalItems}<br>");
+    if (people.items != null) {
+      people.items.forEach((Person person) {
+        visiblePeople.appendHtml("<img src=\"${person.image.url}\">");
+      });
+    }
   }
 
   /**

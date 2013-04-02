@@ -3,9 +3,14 @@ import "dart:json" as JSON;
 import "package:js/js.dart" as js;
 import "package:google_plus_v1_api/plus_v1_api_browser.dart";
 import "package:google_oauth2_client/google_oauth2_browser.dart";
+import "package:logging/logging.dart";
+
+final Logger clientLogger = new Logger("client");
 
 void main() {
-
+  /// Setup a logger
+  _setupLogger();
+  
   /// Simple Authentication class that takes the token from the Sign-in button
   SimpleOAuth2 auth = new SimpleOAuth2(null);
   
@@ -17,8 +22,10 @@ void main() {
   /**
    * Gets and renders the list of people visible to this app.
    */
-  void showPeople() {
-    plusclient.people.list("me", "visible").then((PeopleFeed people) {
+  void showPeople(Map peopleData) {
+    PeopleFeed people = new PeopleFeed.fromJson(peopleData);
+    
+    //plusclient.people.list("me", "visible").then((PeopleFeed people) {
       Element visiblePeople = query("#visiblePeople");
       visiblePeople.innerHtml = "";
       visiblePeople.appendHtml("Number of people visible to this app: ${people.totalItems}<br>");
@@ -27,7 +34,7 @@ void main() {
           visiblePeople.appendHtml("<img src=\"${person.image.url}\">");
         });
       }
-    });
+    //});
   }
 
   /**
@@ -38,31 +45,29 @@ void main() {
    *   https://developers.google.com/+/web/signin/server-side-flow
    */
   connectServer(gplusId) {
-    print("gplusId = $gplusId");
-//    connectServer: function(gplusId) {
-//      console.log(this.authResult.code);
-//      $.ajax({
-//        type: 'POST',
-//        url: window.location.href + '/connect?state={{ STATE }}&gplus_id=' +
-//            gplusId,
-//        contentType: 'application/octet-stream; charset=utf-8',
-//        success: function(result) {
-//          console.log(result);
-//          helper.people();
-//        },
-//        processData: false,
-//        data: this.authResult.code
-//      });
-//    },
-    //HttpRequest.request("url", method: "POST", withCredentials, responseType, sendData, onProgress)
-    //TODO: check for errors or missing data
+    clientLogger.fine("gplusId = $gplusId");
     var stateToken = (query("meta[name='state_token']") as MetaElement).content;
     String url = "${window.location.href}connect?state_token=${stateToken}&gplus_id=${gplusId}";
-    print(url);
-    HttpRequest.request(url, method: "POST", sendData: JSON.stringify(authResultMap))
-    .then((v) {
-      print("connected from POST METHOD");
-      HttpRequest.getString("${window.location.href}people").then((r)=>print("r = $r"));
+    clientLogger.fine(url);
+    HttpRequest.request(url, method: "POST", sendData: JSON.stringify(authResultMap),
+        onProgress: (ProgressEvent e) {
+          clientLogger.fine("ProgressEvent ${e.toString()}");
+        }   
+    )
+    .then((HttpRequest request) {
+      clientLogger.fine("connected from POST METHOD");
+      if (request.status == 401) {
+        clientLogger.fine("request.responseText = ${request.responseText}");
+        return;
+      }
+      
+      HttpRequest.getString("${window.location.href}people").then((String data) {
+        clientLogger.fine("/people = $data");
+        Map peopleData = JSON.parse(data);
+        showPeople(peopleData);
+      });
+    }).catchError((error) {
+      clientLogger.fine("POST $url error ${error.toString()}");
     });
   }
   
@@ -111,7 +116,6 @@ void main() {
       plusclient.makeAuthRequests = true;
 
       showProfile();
-      showPeople();
     } else if (authResult["error"] != null) {
       // There was an error, which means the user is not signed in.
       // As an example, you can handle by writing to the console:
@@ -126,7 +130,28 @@ void main() {
   /**
    * Calls the OAuth2 endpoint to disconnect the app for the user.
    */
-  void disconnect(e) {
+  void disconnect(e) {    
+    String url = "${window.location.href}disconnect";
+    HttpRequest.request(url, method: "POST")
+    .then((HttpRequest request) {
+      clientLogger.fine("disconnect from POST METHOD v = ${request.response}");
+      if (request.status == 200) {
+        Map data = JSON.parse(request.response);
+        (query("meta[name='state_token']") as MetaElement).content = data["state_token"];
+      }
+      
+      // disable authenticated requests in the client library
+      auth.token = null;
+      plusclient.makeAuthRequests = false;
+
+      query("#authOps").style.display = "none";
+      query("#profile").innerHtml = "";
+      query("#visiblePeople").innerHtml = "";
+      query("#authResult").innerHtml = "";
+      query("#gConnect").style.display = "block";
+    });
+    
+    /*
     js.scoped(() {
       // JSONP workaround because the accounts.google.com endpoint doesn't allow CORS
       js.context.myJsonpCallback = new js.Callback.once(([jsonData]) {
@@ -146,7 +171,8 @@ void main() {
       ScriptElement script = new Element.tag("script");
       script.src = "https://accounts.google.com/o/oauth2/revoke?token=${auth.token}&callback=myJsonpCallback";
       document.body.children.add(script);
-    });    
+    }); 
+    */   
   }
   
   /**
@@ -194,4 +220,18 @@ Find and replace YOUR_CLIENT_ID in index.html with your client ID.""");
   script.type = "text/javascript";
   script.src = "https://plus.google.com/js/client:plusone.js";
   document.body.children.add(script);
+}
+
+_setupLogger() {
+  Logger.root.level = Level.ALL;
+  Logger.root.onRecord.listen((LogRecord logRecord) {
+    StringBuffer sb = new StringBuffer();
+    sb
+    ..write(logRecord.time.toString())..write(":")
+    ..write(logRecord.loggerName)..write(":")
+    ..write(logRecord.level.name)..write(":")
+    ..write(logRecord.sequenceNumber)..write(": ")
+    ..write(logRecord.message.toString());
+    print(sb.toString());
+  });
 }

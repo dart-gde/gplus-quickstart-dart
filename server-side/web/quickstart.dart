@@ -1,3 +1,40 @@
+/*
+ *
+ * Copyright 2013 Gerwin Sturm
+ * Copyright 2013 Adam Singer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ *
+ * Adapted from Google+ Javascript Quickstart
+ * https://github.com/googleplus/gplus-quickstart-javascript
+ * Copyright 2013 Google Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import "dart:html";
 import "dart:json" as JSON;
 import "package:js/js.dart" as js;
@@ -17,6 +54,7 @@ void main() {
   /// Dart Client Library for the Google+ API
   Plus plusclient = new Plus(auth);
 
+  /// Stored authentication results
   Map authResultMap;
   
   /**
@@ -25,16 +63,14 @@ void main() {
   void showPeople(Map peopleData) {
     PeopleFeed people = new PeopleFeed.fromJson(peopleData);
     
-    //plusclient.people.list("me", "visible").then((PeopleFeed people) {
-      Element visiblePeople = query("#visiblePeople");
-      visiblePeople.innerHtml = "";
-      visiblePeople.appendHtml("Number of people visible to this app: ${people.totalItems}<br>");
-      if (people.items != null) {
-        people.items.forEach((Person person) {
-          visiblePeople.appendHtml("<img src=\"${person.image.url}\">");
-        });
-      }
-    //});
+    Element visiblePeople = query("#visiblePeople");
+    visiblePeople.innerHtml = "";
+    visiblePeople.appendHtml("Number of people visible to this app: ${people.totalItems}<br>");
+    if (people.items != null) {
+      people.items.forEach((Person person) {
+        visiblePeople.appendHtml("<img src=\"${person.image.url}\">");
+      });
+    }
   }
 
   /**
@@ -110,8 +146,8 @@ void main() {
       // Enable Authenticated requested with the granted token in the client libary
       auth.token = authResult["access_token"];
       auth.tokenType = authResult["token_type"];
-      print("authResult = $authResult");
-      authResult.forEach((k,v) => print("$k = $v"));
+      clientLogger.fine("authResult = $authResult");
+      authResult.forEach((k,v) => clientLogger.fine("$k = $v"));
       authResultMap = authResult;
       plusclient.makeAuthRequests = true;
 
@@ -119,12 +155,12 @@ void main() {
     } else if (authResult["error"] != null) {
       // There was an error, which means the user is not signed in.
       // As an example, you can handle by writing to the console:
-      print("There was an error: ${authResult["error"]}");
+      clientLogger.fine("There was an error: ${authResult["error"]}");
       query("#authResult").appendHtml("Logged out");
       query("#authOps").style.display = "none";
       query("#gConnect").style.display = "block";
     }
-    print("authResult $authResult");
+    clientLogger.fine("authResult $authResult");
   }
 
   /**
@@ -149,30 +185,7 @@ void main() {
       query("#visiblePeople").innerHtml = "";
       query("#authResult").innerHtml = "";
       query("#gConnect").style.display = "block";
-    });
-    
-    /*
-    js.scoped(() {
-      // JSONP workaround because the accounts.google.com endpoint doesn't allow CORS
-      js.context.myJsonpCallback = new js.Callback.once(([jsonData]) {
-        print("revoke response: $jsonData");
-        
-        // disable authenticated requests in the client library
-        auth.token = null;
-        plusclient.makeAuthRequests = false;
-
-        query("#authOps").style.display = "none";
-        query("#profile").innerHtml = "";
-        query("#visiblePeople").innerHtml = "";
-        query("#authResult").innerHtml = "";
-        query("#gConnect").style.display = "block";
-      });
-
-      ScriptElement script = new Element.tag("script");
-      script.src = "https://accounts.google.com/o/oauth2/revoke?token=${auth.token}&callback=myJsonpCallback";
-      document.body.children.add(script);
-    }); 
-    */   
+    });  
   }
   
   /**

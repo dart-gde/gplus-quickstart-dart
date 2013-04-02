@@ -81,8 +81,9 @@ void main() {
 
 void postDisconnectHandler(FukiyaContext context) {
   serverLogger.fine("postDisconnectHandler");
+  serverLogger.fine("context.request.session = ${context.request.session}");
   
-  String tokenData = context.request.session.containsKey("token") ? context.request.session["token"] : null;
+  String tokenData = context.request.session.containsKey("access_token") ? context.request.session["access_token"] : null;
   if (tokenData == null) {
     context.response.statusCode = 401;
     context.send("Current user not connected.");
@@ -90,12 +91,17 @@ void postDisconnectHandler(FukiyaContext context) {
   }
   
   final String revokeTokenUrl = "${TOKEN_REVOKE_ENDPOINT}?token=${tokenData}";
-  context.request.session.remove("token");
+  context.request.session.remove("access_token");
   
   new http.Client()..get(revokeTokenUrl).then((http.Response response) {
     serverLogger.fine("GET ${revokeTokenUrl}");
     serverLogger.fine("Response = ${response.body}");
-    context.send("Successfully disconnected.");
+    context.request.session["state_token"] = _createStateToken();
+    Map data = {
+                "state_token": context.request.session["state_token"],
+                "message" : "Successfully disconnected."
+                };
+    context.send(JSON.stringify(data));
   });
 }
 
@@ -115,20 +121,20 @@ void getPeopleHandler(FukiyaContext context) {
 
 void postConnectDataHandler(FukiyaContext context) {
   serverLogger.fine("postConnectDataHandler");
-  String tokenData = context.request.session.containsKey("token") ? context.request.session["token"] : null; // TODO: handle missing token
+  String tokenData = context.request.session.containsKey("access_token") ? context.request.session["access_token"] : null; // TODO: handle missing token
   String stateToken = context.request.session.containsKey("state_token") ? context.request.session["state_token"] : null;
   String queryStateToken = context.request.queryParameters.containsKey("state_token") ? context.request.queryParameters["state_token"] : null;
   
   // Check if the token already exists for this session. 
   if (tokenData != null) {
-    context.response.statusCode = 400;
     context.send("Current user is already connected.");
     return;
   }
   
   // Check if any of the needed token values are null or mismatched.
   if (stateToken == null || queryStateToken == null || stateToken != queryStateToken) {
-    context.send("POST FAILED tokenData == null || stateToken == null || queryStateToken == null || $stateToken != $queryStateToken"); 
+    context.response.statusCode = 401;
+    context.send("Invalid state parameter."); 
     return;
   }
   
@@ -144,7 +150,7 @@ void postConnectDataHandler(FukiyaContext context) {
   context.request
   .transform(new StringDecoder())
   .listen((data) => sb.write(data), onDone: () {
-    //print(sb.toString());
+    serverLogger.fine("context.request.listen.onDone = ${sb.toString()}");
     Map requestData = JSON.parse(sb.toString());
     
     Map fields = {
@@ -156,9 +162,7 @@ void postConnectDataHandler(FukiyaContext context) {
               "client_secret": CLIENT_SECRET
     };
     
-    //print("trying to post auth code from console");
-    
-    //print("fields = $fields");
+    serverLogger.fine("fields = $fields");
     http.Client _httpClient = new http.Client();
     _httpClient.post(TOKEN_ENDPOINT, fields: fields).then((http.Response response) {
       // At this point we have the token and refresh token.
@@ -169,7 +173,7 @@ void postConnectDataHandler(FukiyaContext context) {
       var verifyTokenUrl = '${TOKENINFO_URL}?access_token=${credentials["access_token"]}';
       new http.Client()
       ..get(verifyTokenUrl).then((http.Response response)  {
-        print("response = ${response.body}");
+        serverLogger.fine("response = ${response.body}");
         
         var verifyResponse = JSON.parse(response.body);
         String userId = verifyResponse.containsKey("user_id") ? verifyResponse["user_id"] : null;
@@ -178,11 +182,21 @@ void postConnectDataHandler(FukiyaContext context) {
           context.request.session["access_token"] = accessToken;
           context.send("POST OK");
         } else {
+          context.response.statusCode = 401;
           context.send("POST FAILED ${userId} != ${gPlusId}"); 
         }
       });
     });
   });
+}
+
+String _createStateToken() {
+  StringBuffer stateTokenBuffer = new StringBuffer();
+  new MD5()
+  ..add(random.nextDouble().toString().codeUnits)
+  ..close().forEach((int s) => stateTokenBuffer.write(s.toRadixString(16)));
+  String stateToken = stateTokenBuffer.toString();
+  return stateToken;
 }
 
 /**
@@ -192,12 +206,7 @@ void postConnectDataHandler(FukiyaContext context) {
 void getIndexHandler(FukiyaContext context) {
   serverLogger.fine("getIndexHandler");
   // Create a state token. 
-  StringBuffer stateTokenBuffer = new StringBuffer();
-  new MD5()
-  ..add(random.nextDouble().toString().codeUnits)
-  ..close().forEach((int s) => stateTokenBuffer.write(s.toRadixString(16)));
-  String stateToken = stateTokenBuffer.toString();
-  context.request.session["state_token"] = stateToken;
+  context.request.session["state_token"] = _createStateToken();
   
   // Readin the index file and add state token into the meta element. 
   var file = new File("./web/index.html");
@@ -205,7 +214,7 @@ void getIndexHandler(FukiyaContext context) {
     if (exists) {
       file.readAsString().then((String indexDocument) {
         Document doc = new Document.html(indexDocument);
-        Element metaState = new Element.html('<meta name="state_token" content="${stateToken}">');
+        Element metaState = new Element.html('<meta name="state_token" content="${context.request.session["state_token"]}">');
         doc.head.children.add(metaState);
         context.response.writeBytes(doc.outerHtml.codeUnits);
         context.response.done.catchError((e) => print("File Response error: ${e}"));

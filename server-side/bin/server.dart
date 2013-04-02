@@ -1,3 +1,20 @@
+/*
+ * Copyright 2013 Adam Singer (financeCoding@gmail.com)
+ * Copyright 2013 Gerwin Sturm 
+ * Copyright 2013 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 import 'dart:io';
 import 'dart:math';
@@ -21,48 +38,9 @@ final String TOKENINFO_URL = "https://www.googleapis.com/oauth2/v1/tokeninfo";
 final String TOKEN_ENDPOINT = 'https://accounts.google.com/o/oauth2/token';
 final String TOKEN_REVOKE_ENDPOINT = 'https://accounts.google.com/o/oauth2/revoke';
 
+final String INDEX_HTML = "./web/index.html";
 final Random random = new Random();
 final Logger serverLogger = new Logger("server");
-
-_setupLogger() {
-  Logger.root.level = Level.ALL;
-  Logger.root.onRecord.listen((LogRecord logRecord) {
-    StringBuffer sb = new StringBuffer();
-    sb
-    ..write(logRecord.time.toString())..write(":")
-    ..write(logRecord.loggerName)..write(":")
-    ..write(logRecord.level.name)..write(":")
-    ..write(logRecord.sequenceNumber)..write(": ")
-    ..write(logRecord.message.toString());
-    print(sb.toString());
-  });
-}
-
-class SimpleOAuth2 implements console_auth.OAuth2Console {
-  final Logger logger = new Logger("SimpleOAuth2");
-  
-  console_auth.Credentials _credentials;
-  console_auth.Credentials get credentials => _credentials;
-  void set credentials(value) {
-    _credentials = value;
-  }
-  console_auth.SystemCache _systemCache;
-  console_auth.SystemCache get systemCache => _systemCache;
-  
-  void clearCredentials(console_auth.SystemCache cache) {
-    logger.fine("clearCredentials(console_auth.SystemCache $cache)");
-  }
-  
-  Future withClient(Future fn(console_auth.Client client)) {
-    logger.fine("withClient(Future ${fn}(console_auth.Client client))");
-    console_auth.Client _httpClient = new console_auth.Client(CLIENT_ID, CLIENT_SECRET, _credentials);
-    return fn(_httpClient);
-  }
-  
-  void close() {
-    logger.fine("close()");
-  } 
-}
 
 void main() {
   _setupLogger();
@@ -79,6 +57,9 @@ void main() {
   ..listen('127.0.0.1', 3333);
 }
 
+/**
+ * Revoke current user's token and reset their session.
+ */
 void postDisconnectHandler(FukiyaContext context) {
   serverLogger.fine("postDisconnectHandler");
   serverLogger.fine("context.request.session = ${context.request.session}");
@@ -105,12 +86,13 @@ void postDisconnectHandler(FukiyaContext context) {
   });
 }
 
+/**
+ * Get list of people user has shared with this app.
+ */
 void getPeopleHandler(FukiyaContext context) {
   serverLogger.fine("getPeopleHandler");
   String accessToken = context.request.session.containsKey("access_token") ? context.request.session["access_token"] : null;
-  SimpleOAuth2 simpleOAuth2 = new SimpleOAuth2();
-  console_auth.Credentials credentials = new console_auth.Credentials(accessToken);
-  simpleOAuth2.credentials = credentials;
+  SimpleOAuth2 simpleOAuth2 = new SimpleOAuth2()..credentials = new console_auth.Credentials(accessToken);
   plus.Plus plusclient = new plus.Plus(simpleOAuth2);
   plusclient.makeAuthRequests = true;
   plusclient.people.list("me", "visible").then((plus.PeopleFeed people) {
@@ -119,6 +101,11 @@ void getPeopleHandler(FukiyaContext context) {
   });
 }
 
+/**
+ * Upgrade given auth code to token, and store it in the session.
+ * POST body of request should be the authorization code.
+ * Example URI: /connect?state=...&gplus_id=...
+ */
 void postConnectDataHandler(FukiyaContext context) {
   serverLogger.fine("postConnectDataHandler");
   String tokenData = context.request.session.containsKey("access_token") ? context.request.session["access_token"] : null; // TODO: handle missing token
@@ -167,7 +154,7 @@ void postConnectDataHandler(FukiyaContext context) {
     _httpClient.post(TOKEN_ENDPOINT, fields: fields).then((http.Response response) {
       // At this point we have the token and refresh token.
       var credentials = JSON.parse(response.body);
-      print("credentials = ${response.body}");
+      serverLogger.fine("credentials = ${response.body}");
       _httpClient.close();
       
       var verifyTokenUrl = '${TOKENINFO_URL}?access_token=${credentials["access_token"]}';
@@ -190,6 +177,9 @@ void postConnectDataHandler(FukiyaContext context) {
   });
 }
 
+/**
+ * Creating state token based on random number. 
+ */
 String _createStateToken() {
   StringBuffer stateTokenBuffer = new StringBuffer();
   new MD5()
@@ -200,7 +190,7 @@ String _createStateToken() {
 }
 
 /**
- * Sends the client a index file with state token to start the client
+ * Sends the client a index file with state token and starts the client
  * side authentication process.
  */
 void getIndexHandler(FukiyaContext context) {
@@ -209,7 +199,7 @@ void getIndexHandler(FukiyaContext context) {
   context.request.session["state_token"] = _createStateToken();
   
   // Readin the index file and add state token into the meta element. 
-  var file = new File("./web/index.html");
+  var file = new File(INDEX_HTML);
   file.exists().then((bool exists) {
     if (exists) {
       file.readAsString().then((String indexDocument) {
@@ -217,12 +207,58 @@ void getIndexHandler(FukiyaContext context) {
         Element metaState = new Element.html('<meta name="state_token" content="${context.request.session["state_token"]}">');
         doc.head.children.add(metaState);
         context.response.writeBytes(doc.outerHtml.codeUnits);
-        context.response.done.catchError((e) => print("File Response error: ${e}"));
+        context.response.done.catchError((e) => serverLogger.fine("File Response error: ${e}"));
         context.response.close();
-      }, onError: (error) => print("error = $error"));
+      }, onError: (error) => serverLogger.fine("error = $error"));
     } else {
       context.response.statusCode = 404;
       context.response.close();
     }
   });
+}
+
+/**
+ * Logger configuration. 
+ */
+_setupLogger() {
+  Logger.root.level = Level.ALL;
+  Logger.root.onRecord.listen((LogRecord logRecord) {
+    StringBuffer sb = new StringBuffer();
+    sb
+    ..write(logRecord.time.toString())..write(":")
+    ..write(logRecord.loggerName)..write(":")
+    ..write(logRecord.level.name)..write(":")
+    ..write(logRecord.sequenceNumber)..write(": ")
+    ..write(logRecord.message.toString());
+    print(sb.toString());
+  });
+}
+
+/**
+ * Simple OAuth2 class for making requests and storing credentials in memory.
+ */
+class SimpleOAuth2 implements console_auth.OAuth2Console {
+  final Logger logger = new Logger("SimpleOAuth2");
+  
+  console_auth.Credentials _credentials;
+  console_auth.Credentials get credentials => _credentials;
+  void set credentials(value) {
+    _credentials = value;
+  }
+  console_auth.SystemCache _systemCache;
+  console_auth.SystemCache get systemCache => _systemCache;
+  
+  void clearCredentials(console_auth.SystemCache cache) {
+    logger.fine("clearCredentials(console_auth.SystemCache $cache)");
+  }
+  
+  Future withClient(Future fn(console_auth.Client client)) {
+    logger.fine("withClient(Future ${fn}(console_auth.Client client))");
+    console_auth.Client _httpClient = new console_auth.Client(CLIENT_ID, CLIENT_SECRET, _credentials);
+    return fn(_httpClient);
+  }
+  
+  void close() {
+    logger.fine("close()");
+  } 
 }

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+
+<!--
+
+/*
+ *
+ * Copyright 2013 Gerwin Sturm
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ *
+ * Adapted from Google+ Javascript Quickstart
+ * https://github.com/googleplus/gplus-quickstart-javascript
+ * Copyright 2013 Google Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+-->
+
+<html>
+  <head>
+    <title>Google+ Dart Quickstart</title>
+  </head>
+  <body>
+    <div id="gConnect">
+      <button class="g-signin"
+          data-scope="https://www.googleapis.com/auth/plus.login"
+          data-requestvisibleactions="http://schemas.google.com/AddActivity"
+          data-clientId="327285194570-kbpkgvfe87tlvpue69lf5krdokbepo6j.apps.googleusercontent.com"
+          data-callback="onSignInCallback"
+          data-theme="dark"
+          data-cookiepolicy="single_host_origin">
+      </button>
+    </div>
+    <div id="authOps" style="display:none">
+      <h2>User is now signed in to the app using Google+</h2>
+      <p>If the user chooses to disconnect, the app must delete all stored
+      information retrieved from Google for the given user.</p>
+      <button id="disconnect">Disconnect your Google account from this app</button>
+
+      <h2>User's profile information</h2>
+      <div id="profile"></div>
+
+      <h2>User's friends that are visible to this app</h2>
+      <div id="visiblePeople"></div>
+
+      <h2>Authentication Logs</h2>
+      <pre id="authResult"></pre>
+    </div>
+    <script type="application/dart" src="quickstart.dart"></script>
+    <script src="packages/browser/dart.js"></script>
+  </body>
+</html>

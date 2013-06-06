@@ -1,6 +1,6 @@
 /*
  * Copyright 2013 Adam Singer (financeCoding@gmail.com)
- * Copyright 2013 Gerwin Sturm 
+ * Copyright 2013 Gerwin Sturm
  * Copyright 2013 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +18,10 @@
 
 import 'dart:io';
 import 'dart:math';
-import 'dart:crypto';
 import 'dart:json' as JSON;
 import 'dart:async';
-import 'dart:uri';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import "package:html5lib/dom.dart";
 import "package:html5lib/dom_parsing.dart";
@@ -44,7 +43,7 @@ final Logger serverLogger = new Logger("server");
 
 void main() {
   _setupLogger();
-  
+
   new Fukiya()
   ..get('/', getIndexHandler)
   ..get('/index.html', getIndexHandler)
@@ -63,17 +62,17 @@ void main() {
 void postDisconnectHandler(FukiyaContext context) {
   serverLogger.fine("postDisconnectHandler");
   serverLogger.fine("context.request.session = ${context.request.session}");
-  
+
   String tokenData = context.request.session.containsKey("access_token") ? context.request.session["access_token"] : null;
   if (tokenData == null) {
     context.response.statusCode = 401;
     context.send("Current user not connected.");
     return;
   }
-  
+
   final String revokeTokenUrl = "${TOKEN_REVOKE_ENDPOINT}?token=${tokenData}";
   context.request.session.remove("access_token");
-  
+
   new http.Client()..get(revokeTokenUrl).then((http.Response response) {
     serverLogger.fine("GET ${revokeTokenUrl}");
     serverLogger.fine("Response = ${response.body}");
@@ -110,28 +109,28 @@ void postConnectDataHandler(FukiyaContext context) {
   serverLogger.fine("postConnectDataHandler");
   String tokenData = context.request.session.containsKey("access_token") ? context.request.session["access_token"] : null; // TODO: handle missing token
   String stateToken = context.request.session.containsKey("state_token") ? context.request.session["state_token"] : null;
-  String queryStateToken = context.request.queryParameters.containsKey("state_token") ? context.request.queryParameters["state_token"] : null;
-  
-  // Check if the token already exists for this session. 
+  String queryStateToken = context.request.uri.queryParameters.containsKey("state_token") ? context.request.uri.queryParameters["state_token"] : null;
+
+  // Check if the token already exists for this session.
   if (tokenData != null) {
     context.send("Current user is already connected.");
     return;
   }
-  
+
   // Check if any of the needed token values are null or mismatched.
   if (stateToken == null || queryStateToken == null || stateToken != queryStateToken) {
     context.response.statusCode = 401;
-    context.send("Invalid state parameter."); 
+    context.send("Invalid state parameter.");
     return;
   }
-  
+
   // Normally the state would be a one-time use token, however in our
   // simple case, we want a user to be able to connect and disconnect
   // without reloading the page.  Thus, for demonstration, we don't
   // implement this best practice.
   context.request.session.remove("state_token");
-  
-  String gPlusId = context.request.queryParameters["gplus_id"];
+
+  String gPlusId = context.request.uri.queryParameters["gplus_id"];
   StringBuffer sb = new StringBuffer();
   // Read data from request.
   context.request
@@ -139,7 +138,7 @@ void postConnectDataHandler(FukiyaContext context) {
   .listen((data) => sb.write(data), onDone: () {
     serverLogger.fine("context.request.listen.onDone = ${sb.toString()}");
     Map requestData = JSON.parse(sb.toString());
-    
+
     Map fields = {
               "grant_type": "authorization_code",
               "code": requestData["code"],
@@ -148,7 +147,7 @@ void postConnectDataHandler(FukiyaContext context) {
               "client_id": CLIENT_ID,
               "client_secret": CLIENT_SECRET
     };
-    
+
     serverLogger.fine("fields = $fields");
     http.Client _httpClient = new http.Client();
     _httpClient.post(TOKEN_ENDPOINT, fields: fields).then((http.Response response) {
@@ -156,12 +155,12 @@ void postConnectDataHandler(FukiyaContext context) {
       var credentials = JSON.parse(response.body);
       serverLogger.fine("credentials = ${response.body}");
       _httpClient.close();
-      
+
       var verifyTokenUrl = '${TOKENINFO_URL}?access_token=${credentials["access_token"]}';
       new http.Client()
       ..get(verifyTokenUrl).then((http.Response response)  {
         serverLogger.fine("response = ${response.body}");
-        
+
         var verifyResponse = JSON.parse(response.body);
         String userId = verifyResponse.containsKey("user_id") ? verifyResponse["user_id"] : null;
         String accessToken = credentials.containsKey("access_token") ? credentials["access_token"] : null;
@@ -170,7 +169,7 @@ void postConnectDataHandler(FukiyaContext context) {
           context.send("POST OK");
         } else {
           context.response.statusCode = 401;
-          context.send("POST FAILED ${userId} != ${gPlusId}"); 
+          context.send("POST FAILED ${userId} != ${gPlusId}");
         }
       });
     });
@@ -178,7 +177,7 @@ void postConnectDataHandler(FukiyaContext context) {
 }
 
 /**
- * Creating state token based on random number. 
+ * Creating state token based on random number.
  */
 String _createStateToken() {
   StringBuffer stateTokenBuffer = new StringBuffer();
@@ -195,10 +194,10 @@ String _createStateToken() {
  */
 void getIndexHandler(FukiyaContext context) {
   serverLogger.fine("getIndexHandler");
-  // Create a state token. 
+  // Create a state token.
   context.request.session["state_token"] = _createStateToken();
-  
-  // Readin the index file and add state token into the meta element. 
+
+  // Readin the index file and add state token into the meta element.
   var file = new File(INDEX_HTML);
   file.exists().then((bool exists) {
     if (exists) {
@@ -206,7 +205,7 @@ void getIndexHandler(FukiyaContext context) {
         Document doc = new Document.html(indexDocument);
         Element metaState = new Element.html('<meta name="state_token" content="${context.request.session["state_token"]}">');
         doc.head.children.add(metaState);
-        context.response.writeBytes(doc.outerHtml.codeUnits);
+        context.response.write(doc.outerHtml);
         context.response.done.catchError((e) => serverLogger.fine("File Response error: ${e}"));
         context.response.close();
       }, onError: (error) => serverLogger.fine("error = $error"));
@@ -218,7 +217,7 @@ void getIndexHandler(FukiyaContext context) {
 }
 
 /**
- * Logger configuration. 
+ * Logger configuration.
  */
 _setupLogger() {
   Logger.root.level = Level.ALL;
@@ -239,7 +238,7 @@ _setupLogger() {
  */
 class SimpleOAuth2 implements console_auth.OAuth2Console {
   final Logger logger = new Logger("SimpleOAuth2");
-  
+
   console_auth.Credentials _credentials;
   console_auth.Credentials get credentials => _credentials;
   void set credentials(value) {
@@ -247,18 +246,18 @@ class SimpleOAuth2 implements console_auth.OAuth2Console {
   }
   console_auth.SystemCache _systemCache;
   console_auth.SystemCache get systemCache => _systemCache;
-  
+
   void clearCredentials(console_auth.SystemCache cache) {
     logger.fine("clearCredentials(console_auth.SystemCache $cache)");
   }
-  
+
   Future withClient(Future fn(console_auth.Client client)) {
     logger.fine("withClient(Future ${fn}(console_auth.Client client))");
     console_auth.Client _httpClient = new console_auth.Client(CLIENT_ID, CLIENT_SECRET, _credentials);
     return fn(_httpClient);
   }
-  
+
   void close() {
     logger.fine("close()");
-  } 
+  }
 }

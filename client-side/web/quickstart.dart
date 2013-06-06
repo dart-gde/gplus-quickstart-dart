@@ -8,7 +8,7 @@ void main() {
 
   /// Simple Authentication class that takes the token from the Sign-in button
   SimpleOAuth2 auth = new SimpleOAuth2(null);
-  
+
   /// Dart Client Library for the Google+ API
   Plus plusclient = new Plus(auth);
 
@@ -41,11 +41,11 @@ void main() {
         "<p>Hello ${profile.displayName}!<br>Tagline: ${profile.tagline}<br>About: ${profile.aboutMe}</p>"
       );
       profileDiv.appendHtml(
-        "<p><img src=\"${profile.cover.coverPhoto.url}\"</p>"  
+        "<p><img src=\"${profile.cover.coverPhoto.url}\"</p>"
       );
     });
   }
-  
+
   /**
    * Hides the sign in button and starts the post-authorization operations.
    *
@@ -55,13 +55,13 @@ void main() {
   void onSignInCallback(Map authResult) {
     query("#authResult").innerHtml = "Auth Result:<br>";
     authResult.forEach((key, value) {
-      query("#authResult").appendHtml(" $key: $value<br>");  
+      query("#authResult").appendHtml(" $key: $value<br>");
     });
-    
+
     if (authResult["access_token"] != null) {
       query("#authOps").style.display = "block";
       query("#gConnect").style.display = "none";
-      
+
       // Enable Authenticated requested with the granted token in the client libary
       auth.token = authResult["access_token"];
       auth.tokenType = authResult["token_type"];
@@ -88,7 +88,7 @@ void main() {
       // JSONP workaround because the accounts.google.com endpoint doesn't allow CORS
       js.context.myJsonpCallback = new js.Callback.once(([jsonData]) {
         print("revoke response: $jsonData");
-        
+
         // disable authenticated requests in the client library
         auth.token = null;
         plusclient.makeAuthRequests = false;
@@ -102,10 +102,10 @@ void main() {
 
       ScriptElement script = new Element.tag("script");
       script.src = "https://accounts.google.com/o/oauth2/revoke?token=${auth.token}&callback=myJsonpCallback";
-      document.body.children.addLast(script);
-    });    
+      document.body.children.add(script);
+    });
   }
-  
+
   /**
    * Calls the method that handles the authentication flow.
    *
@@ -135,7 +135,7 @@ void main() {
    * Initialization
    */
   query("#disconnect").onClick.listen(disconnect);
-  
+
   if (query('[data-clientid="YOUR_CLIENT_ID"]') != null) {
     query("#gConnect").style.display = "none";
     window.alert("""
@@ -144,7 +144,7 @@ https://code.google.com/apis/console/#:access
 
 Find and replace YOUR_CLIENT_ID in index.html with your client ID.""");
   }
-  
+
   // Load the JS library that renders and handles the Sign-in button
   ScriptElement script = new ScriptElement();
   script.async = true;

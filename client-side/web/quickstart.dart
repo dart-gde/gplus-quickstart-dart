@@ -86,7 +86,7 @@ void main() {
   void disconnect(e) {
     js.scoped(() {
       // JSONP workaround because the accounts.google.com endpoint doesn't allow CORS
-      js.context.myJsonpCallback = new js.Callback.once(([jsonData]) {
+      js.context["myJsonpCallback"] = new js.Callback.once(([jsonData]) {
         print("revoke response: $jsonData");
 
         // disable authenticated requests in the client library
@@ -113,9 +113,9 @@ void main() {
    *   other authentication information.
    */
   js.scoped(() {
-    js.context.onSignInCallback =  new js.Callback.many((js.Proxy authResult) {
+    js.context["onSignInCallback"] =  new js.Callback.many((js.Proxy authResult) {
       Map dartAuthResult = JSON.parse(
-        js.context.JSON.stringify(
+        js.context["JSON"]["stringify"](
           authResult,
           new js.Callback.many((key, value) {
             if (key == "g-oauth-window") {

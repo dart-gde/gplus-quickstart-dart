@@ -20,6 +20,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:json' as JSON;
 import 'dart:async';
+import 'dart:utf';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
@@ -134,7 +135,7 @@ void postConnectDataHandler(FukiyaContext context) {
   StringBuffer sb = new StringBuffer();
   // Read data from request.
   context.request
-  .transform(new StringDecoder())
+  .transform(new Utf8DecoderTransformer())
   .listen((data) => sb.write(data), onDone: () {
     serverLogger.fine("context.request.listen.onDone = ${sb.toString()}");
     Map requestData = JSON.parse(sb.toString());

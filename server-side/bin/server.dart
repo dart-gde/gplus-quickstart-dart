@@ -20,13 +20,14 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:json' as JSON;
 import 'dart:async';
+import 'dart:utf';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import "package:html5lib/dom.dart";
-import "package:html5lib/dom_parsing.dart";
 import "package:fukiya/fukiya.dart";
 import "package:google_plus_v1_api/plus_v1_api_console.dart" as plus;
+import "package:google_plus_v1_api/plus_v1_api_client.dart" as plus_client;
 import "package:google_oauth2_client/google_oauth2_console.dart" as console_auth;
 import "package:logging/logging.dart";
 
@@ -94,7 +95,7 @@ void getPeopleHandler(FukiyaContext context) {
   SimpleOAuth2 simpleOAuth2 = new SimpleOAuth2()..credentials = new console_auth.Credentials(accessToken);
   plus.Plus plusclient = new plus.Plus(simpleOAuth2);
   plusclient.makeAuthRequests = true;
-  plusclient.people.list("me", "visible").then((plus.PeopleFeed people) {
+  plusclient.people.list("me", "visible").then((plus_client.PeopleFeed people) {
     serverLogger.fine("/people = $people");
     context.send(people.toString());
   });
@@ -134,7 +135,7 @@ void postConnectDataHandler(FukiyaContext context) {
   StringBuffer sb = new StringBuffer();
   // Read data from request.
   context.request
-  .transform(new StringDecoder())
+  .transform(new Utf8DecoderTransformer())
   .listen((data) => sb.write(data), onDone: () {
     serverLogger.fine("context.request.listen.onDone = ${sb.toString()}");
     Map requestData = JSON.parse(sb.toString());
@@ -238,6 +239,10 @@ _setupLogger() {
  */
 class SimpleOAuth2 implements console_auth.OAuth2Console {
   final Logger logger = new Logger("SimpleOAuth2");
+
+  Uri _tokenEndpoint = Uri.parse(
+      'https://accounts.google.com/o/oauth2/token');
+  Uri get tokenEndpoint => _tokenEndpoint;
 
   console_auth.Credentials _credentials;
   console_auth.Credentials get credentials => _credentials;

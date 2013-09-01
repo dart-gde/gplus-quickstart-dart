@@ -9,6 +9,6 @@ dependencies:
   google_plus_v1_api: any
   browser: any
   crypto: any
-  fukiya: '>=0.1.4'
+  fukiya: ">=0.1.10"
   html5lib: ">=0.4.3"
   logging: ">=0.5.13"

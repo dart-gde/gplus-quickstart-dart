@@ -18,9 +18,8 @@
 
 import 'dart:io';
 import 'dart:math';
-import 'dart:json' as JSON;
+import 'dart:convert';
 import 'dart:async';
-import 'dart:utf';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
@@ -82,7 +81,7 @@ void postDisconnectHandler(FukiyaContext context) {
                 "state_token": context.request.session["state_token"],
                 "message" : "Successfully disconnected."
                 };
-    context.send(JSON.stringify(data));
+    context.send(JSON.encode(data));
   });
 }
 
@@ -92,7 +91,8 @@ void postDisconnectHandler(FukiyaContext context) {
 void getPeopleHandler(FukiyaContext context) {
   serverLogger.fine("getPeopleHandler");
   String accessToken = context.request.session.containsKey("access_token") ? context.request.session["access_token"] : null;
-  SimpleOAuth2 simpleOAuth2 = new SimpleOAuth2()..credentials = new console_auth.Credentials(accessToken);
+  console_auth.SimpleOAuth2Console simpleOAuth2 =
+      new console_auth.SimpleOAuth2Console(CLIENT_ID, CLIENT_SECRET, accessToken);
   plus.Plus plusclient = new plus.Plus(simpleOAuth2);
   plusclient.makeAuthRequests = true;
   plusclient.people.list("me", "visible").then((plus_client.PeopleFeed people) {
@@ -135,10 +135,10 @@ void postConnectDataHandler(FukiyaContext context) {
   StringBuffer sb = new StringBuffer();
   // Read data from request.
   context.request
-  .transform(new Utf8DecoderTransformer())
+  .transform(new Utf8Decoder())
   .listen((data) => sb.write(data), onDone: () {
     serverLogger.fine("context.request.listen.onDone = ${sb.toString()}");
-    Map requestData = JSON.parse(sb.toString());
+    Map requestData = JSON.decode(sb.toString());
 
     Map fields = {
               "grant_type": "authorization_code",
@@ -153,7 +153,7 @@ void postConnectDataHandler(FukiyaContext context) {
     http.Client _httpClient = new http.Client();
     _httpClient.post(TOKEN_ENDPOINT, fields: fields).then((http.Response response) {
       // At this point we have the token and refresh token.
-      var credentials = JSON.parse(response.body);
+      var credentials = JSON.decode(response.body);
       serverLogger.fine("credentials = ${response.body}");
       _httpClient.close();
 
@@ -162,7 +162,7 @@ void postConnectDataHandler(FukiyaContext context) {
       ..get(verifyTokenUrl).then((http.Response response)  {
         serverLogger.fine("response = ${response.body}");
 
-        var verifyResponse = JSON.parse(response.body);
+        var verifyResponse = JSON.decode(response.body);
         String userId = verifyResponse.containsKey("user_id") ? verifyResponse["user_id"] : null;
         String accessToken = credentials.containsKey("access_token") ? credentials["access_token"] : null;
         if (userId != null && userId == gPlusId && accessToken != null) {
@@ -232,37 +232,4 @@ _setupLogger() {
     ..write(logRecord.message.toString());
     print(sb.toString());
   });
-}
-
-/**
- * Simple OAuth2 class for making requests and storing credentials in memory.
- */
-class SimpleOAuth2 implements console_auth.OAuth2Console {
-  final Logger logger = new Logger("SimpleOAuth2");
-
-  Uri _tokenEndpoint = Uri.parse(
-      'https://accounts.google.com/o/oauth2/token');
-  Uri get tokenEndpoint => _tokenEndpoint;
-
-  console_auth.Credentials _credentials;
-  console_auth.Credentials get credentials => _credentials;
-  void set credentials(value) {
-    _credentials = value;
-  }
-  console_auth.SystemCache _systemCache;
-  console_auth.SystemCache get systemCache => _systemCache;
-
-  void clearCredentials(console_auth.SystemCache cache) {
-    logger.fine("clearCredentials(console_auth.SystemCache $cache)");
-  }
-
-  Future withClient(Future fn(console_auth.Client client)) {
-    logger.fine("withClient(Future ${fn}(console_auth.Client client))");
-    console_auth.Client _httpClient = new console_auth.Client(CLIENT_ID, CLIENT_SECRET, _credentials);
-    return fn(_httpClient);
-  }
-
-  void close() {
-    logger.fine("close()");
-  }
 }

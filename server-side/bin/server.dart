@@ -19,7 +19,6 @@
 import 'dart:io';
 import 'dart:math';
 import 'dart:convert';
-import 'dart:async';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
@@ -37,7 +36,7 @@ final String TOKENINFO_URL = "https://www.googleapis.com/oauth2/v1/tokeninfo";
 final String TOKEN_ENDPOINT = 'https://accounts.google.com/o/oauth2/token';
 final String TOKEN_REVOKE_ENDPOINT = 'https://accounts.google.com/o/oauth2/revoke';
 
-final String INDEX_HTML = "./web/index.html";
+final String INDEX_HTML = "../web/index.html";
 final Random random = new Random();
 final Logger serverLogger = new Logger("server");
 
@@ -51,7 +50,7 @@ void main() {
   ..post('/connect', postConnectDataHandler)
   ..get('/people', getPeopleHandler)
   ..post('/disconnect', postDisconnectHandler)
-  ..staticFiles('./web')
+  ..staticFiles('../web')
   ..use(new FukiyaJsonParser())
   ..listen('127.0.0.1', 3333);
 }
@@ -151,7 +150,7 @@ void postConnectDataHandler(FukiyaContext context) {
 
     serverLogger.fine("fields = $fields");
     http.Client _httpClient = new http.Client();
-    _httpClient.post(TOKEN_ENDPOINT, fields: fields).then((http.Response response) {
+    _httpClient.post(TOKEN_ENDPOINT, body: fields).then((http.Response response) {
       // At this point we have the token and refresh token.
       var credentials = JSON.decode(response.body);
       serverLogger.fine("credentials = ${response.body}");

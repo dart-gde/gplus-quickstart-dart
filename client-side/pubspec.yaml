@@ -1,9 +1,8 @@
 name: gplus_quickstart_dart
-description: This quick-start app is built in Dart and lets you get started with the Google+ platform in a few minutes.
-version: 0.0.2
+version: 0.0.3
 author: Gerwin Sturm <scarygami@gmail.com>
+description: This quick-start app is built in Dart and lets you get started with the Google+ platform in a few minutes.
 homepage: https://github.com/Scarygami/gplus-quickstart-dart
-
 dependencies:
   browser: any
   google_plus_v1_api: any

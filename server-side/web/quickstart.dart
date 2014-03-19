@@ -37,7 +37,7 @@
 
 import "dart:html";
 import "dart:convert";
-import "package:js/js.dart" as js;
+import "dart:js" as js;
 import "package:google_plus_v1_api/plus_v1_api_browser.dart";
 import "package:google_plus_v1_api/plus_v1_api_client.dart";
 import "package:google_oauth2_client/google_oauth2_browser.dart";
@@ -86,7 +86,7 @@ void main() {
     var stateToken = (querySelector("meta[name='state_token']") as MetaElement).content;
     String url = "${window.location.href}connect?state_token=${stateToken}&gplus_id=${gplusId}";
     clientLogger.fine(url);
-    HttpRequest.request(url, method: "POST", sendData: JSON.encode(authResultMap),
+    HttpRequest.request(url, method: "POST", sendData: JSON.encode({"access_token": authResultMap["access_token"]}),
         onProgress: (ProgressEvent e) {
           clientLogger.fine("ProgressEvent ${e.toString()}");
         }
@@ -134,10 +134,12 @@ void main() {
    * @param {Map} authResult An Object which contains the access token and
    *   other authentication information.
    */
-  void onSignInCallback(Map authResult) {
+  void onSignInCallback(js.JsObject authResult) {
     querySelector("#authResult").innerHtml = "Auth Result:<br>";
-    authResult.forEach((key, value) {
-      querySelector("#authResult").appendHtml(" $key: $value<br>");
+    var keys = js.context["Object"].callMethod("keys", [authResult]);
+    
+    keys.forEach((key) {
+      querySelector("#authResult").appendHtml("$key: ${authResult[key]}<br>");
     });
 
     if (authResult["access_token"] != null) {
@@ -151,8 +153,11 @@ void main() {
       plusclient = new Plus(auth);
 
       clientLogger.fine("authResult = $authResult");
-      authResult.forEach((k,v) => clientLogger.fine("$k = $v"));
-      authResultMap = authResult;
+      authResultMap = new Map();
+      keys.forEach((k) {
+        authResultMap[k] = authResult[k];
+        clientLogger.fine("$k = ${authResult[k]}");
+      });
       plusclient.makeAuthRequests = true;
 
       showProfile();
@@ -167,6 +172,8 @@ void main() {
     clientLogger.fine("authResult $authResult");
   }
 
+  js.context["onSignInCallback"] = onSignInCallback;
+  
   /**
    * Calls the OAuth2 endpoint to disconnect the app for the user.
    */
@@ -190,31 +197,6 @@ void main() {
       querySelector("#gConnect").style.display = "block";
     });
   }
-
-  /**
-   * Calls the method that handles the authentication flow.
-   *
-   * @param {Object} authResult An Object which contains the access token and
-   *   other authentication information.
-   */
-  js.scoped(() {
-    js.context.onSignInCallback =  new js.Callback.many((js.Proxy authResult) {
-      Map dartAuthResult = JSON.decode(
-        js.context.JSON.stringify(
-          authResult,
-          new js.Callback.many((key, value) {
-            if (key == "g-oauth-window") {
-              // g-oauth-window is an object returned in the authResult
-              // remove it to prevent errors in JSON.stringify
-              return "";
-            }
-            return value;
-          })
-        )
-      );
-      onSignInCallback(dartAuthResult);
-    });
-  });
 
   /**
    * Initialization

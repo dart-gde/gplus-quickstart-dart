@@ -86,7 +86,8 @@ void main() {
     var stateToken = (querySelector("meta[name='state_token']") as MetaElement).content;
     String url = "${window.location.href}connect?state_token=${stateToken}&gplus_id=${gplusId}";
     clientLogger.fine(url);
-    HttpRequest.request(url, method: "POST", sendData: JSON.encode({"access_token": authResultMap["access_token"]}),
+    HttpRequest.request(url, method: "POST",
+        sendData: JSON.encode({"access_token": authResultMap["access_token"], "code": authResultMap["code"]}),
         onProgress: (ProgressEvent e) {
           clientLogger.fine("ProgressEvent ${e.toString()}");
         }
@@ -137,7 +138,7 @@ void main() {
   void onSignInCallback(js.JsObject authResult) {
     querySelector("#authResult").innerHtml = "Auth Result:<br>";
     var keys = js.context["Object"].callMethod("keys", [authResult]);
-    
+
     keys.forEach((key) {
       querySelector("#authResult").appendHtml("$key: ${authResult[key]}<br>");
     });
@@ -173,7 +174,7 @@ void main() {
   }
 
   js.context["onSignInCallback"] = onSignInCallback;
-  
+
   /**
    * Calls the OAuth2 endpoint to disconnect the app for the user.
    */

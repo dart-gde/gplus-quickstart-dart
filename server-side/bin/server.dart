@@ -36,7 +36,7 @@ final String TOKENINFO_URL = "https://www.googleapis.com/oauth2/v1/tokeninfo";
 final String TOKEN_ENDPOINT = 'https://accounts.google.com/o/oauth2/token';
 final String TOKEN_REVOKE_ENDPOINT = 'https://accounts.google.com/o/oauth2/revoke';
 
-final String INDEX_HTML = "../web/index.html";
+final String INDEX_HTML = "web/index.html";
 final Random random = new Random();
 final Logger serverLogger = new Logger("server");
 
@@ -50,7 +50,7 @@ void main() {
   ..post('/connect', postConnectDataHandler)
   ..get('/people', getPeopleHandler)
   ..post('/disconnect', postDisconnectHandler)
-  ..staticFiles('../web')
+  ..staticFiles('web')
   ..use(new FukiyaJsonParser())
   ..listen('127.0.0.1', 3333);
 }
@@ -96,7 +96,7 @@ void getPeopleHandler(FukiyaContext context) {
   plusclient.makeAuthRequests = true;
   plusclient.people.list("me", "visible").then((plus_client.PeopleFeed people) {
     serverLogger.fine("/people = $people");
-    context.send(people.toString());
+    context.jsonResponse(people.toJson());
   });
 }
 
